@@ -4,8 +4,8 @@ echo "Starting the task..."
 # Add your commands here, for example:
 
 python3 BigEndianConversion.py
-iverilog -o output_RISCV tb.v
-vvp output_RISCV
+iverilog -o output tb.v
+vvp output
 surfer tb.vcd
 
 echo "Done!"
