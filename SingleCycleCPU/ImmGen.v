@@ -25,7 +25,7 @@ module ImmGen#(parameter Width = 32) (
 
         jal :
             begin
-                imm = {12{inst[31]},{inst[31],inst[19:12],inst[20],inst[30:21]}};
+                imm = {{12{inst[31]}},{inst[31],inst[19:12],inst[20],inst[30:21]}};
             end
 
         store :

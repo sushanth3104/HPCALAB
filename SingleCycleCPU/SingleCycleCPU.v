@@ -1,119 +1,168 @@
+`include "PC.v"
+`include "Adder.v"
+`include "InstructionMemory.v"
+`include "Control.v"
+`include "Register.v"
+`include "ImmGen.v"
+`include "ShiftLeftOne.v"
+`include "Mux2to1.v"
+`include "Mux3to1.v"
+`include "ALUCtrl.v"
+`include "ALU.v"
+`include "DataMemory.v"
+
+
+
 module SingleCycleCPU (
     input clk,
     input start
     
 );
 
-// When input start is zero, cpu should reset
-// When input start is high, cpu start running
+wire [31:0]PC,PCNext,PCPlus4,Inst,Rd1,Rd2,Imm,ImmL,SrcA,SrcB,ALUResult,PCTarget,PCTargetOut,ReadData,Result;
+wire RegWrite,Branch,Jump,MemRead,MemWrite,ALUSrc,PCLoad,Zero,PCSrc,AndOutBranch;
+wire [1:0]ResultSrc,ALUOp;
+wire [3:0]ALUCtl;
+wire [4:0]Rs1,Rs2,Wr;
 
-// TODO: connect wire to realize SingleCycleCPU
-// The following provides simple template,
+assign Rs1 = Inst[19:15];
+assign Rs2 = Inst[24:20];
+assign Wr = Inst[11:7];
+assign SrcA = Rd1;
+
+wire [6:0] Opcode;
+wire [2:0] func3;
+wire func7_5;
+wire opcode_5;
+
+assign func3 = Inst[14:12];
+assign func7_5 = Inst[30];
+assign opcode_5 = Inst[5];
+
+assign  Opcode = Inst[6:0];
 
 
-PC m_PC(
-    .clk(),
+PC PC1(
+    .clk(clk),
     .rst(start),
-    .pc_i(),
-    .pc_o()
+    .pc_i(PCNext),
+    .pc_o(PC)
 );
 
-Adder m_Adder_1(
-    .a(),
-    .b(),
-    .sum()
+Adder PCAdder(
+    .a(PC),
+    .b(32'd4),
+    .sum(PCPlus4)
 );
 
-InstructionMemory m_InstMem(
-    .readAddr(),
-    .inst()
-);
-
-Control m_Control(
-    .opcode(),
-    .branch(),
-    .memRead(),
-    .memtoReg(),
-    .ALUOp(),
-    .memWrite(),
-    .ALUSrc(),
-    .regWrite()
+InstructionMemory IM(
+    .readAddr(PC),
+    .inst(Inst)
 );
 
 
-Register m_Register(
-    .clk(),
+Register RegisterFile(
+    .clk(clk),
     .rst(start),
-    .regWrite(),
-    .readReg1(),
-    .readReg2(),
-    .writeReg(),
-    .writeData(),
-    .readData1(),
-    .readData2()
+    .readReg1(Rs1),
+    .readReg2(Rs2),
+    .writeReg(Wr),
+    .writeData(Result),
+    .readData1(Rd1),
+    .readData2(Rd2),
+    .regWrite(RegWrite)
 );
 
-
-ImmGen #(.Width(32)) m_ImmGen(
-    .inst(),
-    .imm()
+ImmGen ImmGen(
+    .inst(Inst),
+    .imm(Imm)
 );
 
-ShiftLeftOne m_ShiftLeftOne(
-    .i(),
-    .o()
+Control Control(
+    .opcode(Opcode),
+    .branch(Branch),
+    .jump(Jump),
+    .memRead(MemRead),
+    .ResultSrc(ResultSrc),
+    .ALUOp(ALUOp),
+    .PCLoad(PCLoad),
+    .memWrite(MemWrite),
+    .ALUSrc(ALUSrc),
+    .regWrite(RegWrite)
 );
 
-Adder m_Adder_2(
-    .a(),
-    .b(),
-    .sum()
+ShiftLeftOne ShiftLeft(
+    .i(Imm),
+    .o(ImmL)
 );
 
-Mux2to1 #(.size(32)) m_Mux_PC(
-    .sel(),
-    .s0(),
-    .s1(),
-    .out()
+Mux2to1 MuxALU(
+    .s0(Rd2),
+    .s1(Imm),
+    .sel(ALUSrc),
+    .out(SrcB)
 );
 
-Mux2to1 #(.size(32)) m_Mux_ALU(
-    .sel(),
-    .s0(),
-    .s1(),
-    .out()
+ALU ALU(
+    .SrcA(SrcA),
+    .SrcB(SrcB),
+    .ALUCtl(ALUCtl),
+    .ALUOut(ALUResult),
+    .Zero(Zero)
 );
 
-ALUCtrl m_ALUCtrl(
-    .ALUOp(),
-    .funct7(),
-    .funct3(),
-    .ALUCtl()
+ALUCtrl ALUControl(
+    .ALUOp(ALUOp),
+    .func3(func3),
+    .func7_5(func7_5),
+    .opcode_5(opcode_5),
+    .ALUCtl(ALUCtl)
 );
 
-ALU m_ALU(
-    .ALUctl(),
-    .A(),
-    .B(),
-    .ALUOut(),
-    .zero()
+Adder PCTargetAdder(
+    .a(PC),
+    .b(ImmL),
+    .sum(PCTarget)
 );
 
-DataMemory m_DataMemory(
+Mux2to1 MuxPCTarget(
+    .s0(PCPlus4),
+    .s1(PCTarget),
+    .sel(PCSrc),
+    .out(PCTargetOut)
+);
+
+Mux2to1 MuxPCNext(
+    .s0(PCTargetOut),
+    .s1(ALUResult),
+    .sel(PCLoad),
+    .out(PCNext)
+);
+
+and andBranch(AndOutBranch,Branch,Zero);
+or orPCSrc(PCSrc,AndOutBranch,Jump);
+
+
+DataMemory DataMemory(
     .rst(start),
-    .clk(),
-    .memWrite(),
-    .memRead(),
-    .address(),
-    .writeData(),
-    .readData()
+    .clk(clk),
+    .memWrite(MemWrite),
+    .memRead(MemRead), 
+    .address(ALUResult),
+    .writeData(Rd2),
+    .readData(ReadData)
 );
 
-Mux2to1 #(.size(32)) m_Mux_WriteData(
-    .sel(),
-    .s0(),
-    .s1(),
-    .out()
+
+Mux3to1 MuxResultSrc(
+    .A(ALUResult),
+    .B(ReadData),
+    .C(PCPlus4),
+    .S(ResultSrc),
+    .Y(Result)
 );
+
+
+
 
 endmodule

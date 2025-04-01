@@ -1,7 +1,7 @@
-module ALU (
+module ALU #(parameter WIDTH = 32)(
     input [3:0] ALUCtl,
     input [31:0] SrcA,SrcB,
-    output reg [31:0] ALUOut,
+    output  [31:0] ALUOut,
     output Zero
 );
 

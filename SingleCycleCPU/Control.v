@@ -1,14 +1,14 @@
 module Control (
     input [6:0] opcode,
-    output  branch,
-    output jump,
-    output  memRead,
-    output  [1:0]ResultSrc,
-    output  [1:0] ALUOp,
-    output PCLoad,
-    output  memWrite,
-    output  ALUSrc,
-    output  regWrite,
+    output reg branch,
+    output reg jump,
+    output reg memRead,
+    output reg [1:0]ResultSrc,
+    output  reg [1:0] ALUOp,
+    output reg PCLoad,
+    output reg memWrite,
+    output reg ALUSrc,
+    output reg regWrite
     );
 
 
@@ -90,7 +90,7 @@ always@(*)begin
             memRead = 0;
             ResultSrc = 2'b00;
             ALUOp = IR_Type;
-            PCLoad
+            PCLoad = 0;
             memWrite = 0;
             ALUSrc = 1;
             regWrite = 1;
