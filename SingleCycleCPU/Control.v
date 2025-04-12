@@ -5,7 +5,7 @@ module Control (
     output reg memRead,
     output reg [1:0]ResultSrc,
     output  reg [1:0] ALUOp,
-    output reg PCLoad,
+    output reg PCLoad, // This is for JALR selection
     output reg memWrite,
     output reg ALUSrc,
     output reg regWrite
@@ -133,7 +133,7 @@ always@(*)begin
             branch = 0;
             jump = 1;
             memRead = 0;
-            ResultSrc = 2'b10;
+            ResultSrc = 2'b10;      // Store PC+4 in rd
             ALUOp = Load_Store_Type; // For addition
             PCLoad = 1;
             memWrite = 0;

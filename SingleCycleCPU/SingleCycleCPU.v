@@ -41,6 +41,7 @@ assign opcode_5 = Inst[5];
 
 assign  Opcode = Inst[6:0];
 
+wire [31:0] JalrResult;
 
 PC PC1(
     .clk(clk),
@@ -132,9 +133,17 @@ Mux2to1 MuxPCTarget(
     .out(PCTargetOut)
 );
 
-Mux2to1 MuxPCNext(
+
+Adder JALRAdder(      // Presence of this adder enables JALR instruction to compute the target address in decode stage itself
+    .a(Rd1),
+    .b(Imm),
+    .sum(JalrResult) 
+);
+
+
+Mux2to1 MuxPCNext(            //  This is written for Unconditional Jump : JALR 
     .s0(PCTargetOut),
-    .s1(ALUResult),
+    .s1(JalrResult),
     .sel(PCLoad),
     .out(PCNext)
 );
