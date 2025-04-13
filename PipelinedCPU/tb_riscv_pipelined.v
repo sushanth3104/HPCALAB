@@ -1,4 +1,4 @@
-`include "SingleCycleCPU.v"
+`include "PielinedCPU.v"
 `timescale 1ns/1ps
 module tb_riscv_sc;
 //cpu testbench

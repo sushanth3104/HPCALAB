@@ -1,11 +1,11 @@
 module ALU #(parameter WIDTH = 32)(
     input [3:0] ALUCtl,
     input [31:0] SrcA,SrcB,
-    output  [31:0] ALUOut,
-    output Zero
+    output  [31:0] ALUOut
+    //output Zero : No longer needed, to be done in Decode stage
 );
 
- reg [WIDTH-1:0]temp;
+reg [WIDTH-1:0]temp;
 
 parameter ADD = 0;
 parameter SUB = 1;
@@ -19,14 +19,15 @@ parameter OR = 8;
 parameter AND = 9;
 
 //  For Branch 
-parameter BNE = 10;
+/* parameter BNE = 10;
 parameter BLT = 11;
 parameter BGE = 12;
 parameter BLTU = 13;
-parameter BGEU = 14;
+parameter BGEU = 14; */
 
 assign ALUOut = temp;
-assign Zero = ~|temp;
+
+//assign Zero = ~|temp;
 
 always@(*) begin
 
@@ -42,11 +43,18 @@ always@(*) begin
         SRA :temp = $signed(SrcA) >>> SrcB ;
         OR :temp = SrcA | SrcB ;
         AND :temp = SrcA & SrcB ;
-        BNE :temp = (SrcA == SrcB);
-        BLT :temp = ($signed(SrcA) < $signed(SrcB)) ? 0 : 1 ;
+
+
+        // Decoupled from ALU, Since it is to be done in Decode stage 
+
+/*      BNE :temp = (SrcA == SrcB);
+        BLT :temp = ($signed(SrcA) < $signed(SrcB)) ? 0 : 1 ;  
         BGE :temp = ($signed(SrcA) >= $signed(SrcB)) ? 0 : 1 ;
         BLTU :temp = (SrcA < SrcB)? 0 : 1 ;
-        BGEU :temp = (SrcA >= SrcB)? 0 : 1 ;
+        BGEU :temp = (SrcA >= SrcB)? 0 : 1 ; */
+
+
+
         default :temp = 0;
 
 

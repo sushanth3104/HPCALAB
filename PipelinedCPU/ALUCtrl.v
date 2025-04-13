@@ -10,7 +10,10 @@ assign ALUCtl = temp;
 
 // Issued by the Control Unit - ALUOp
 parameter Load_Store_Type = 0;
-parameter Branch_Type = 1;
+
+
+//parameter Branch_Type = 1;   No longer needed as it is decoupled form ALU
+
 parameter IR_Type = 2;
 
 
@@ -27,19 +30,19 @@ parameter AND = 9;
 
 //  For Branch 
 
-parameter BNE = 10;
+/* parameter BNE = 10;
 parameter BLT = 11;
 parameter BGE = 12;
 parameter BLTU = 13;
 parameter BGEU = 14;
-
+ */
 
 always @(*) begin
     case(ALUOp)
 
         Load_Store_Type : temp = ADD;
 
-        Branch_Type: begin
+       /*  Branch_Type: begin
             case(func3)
                 3'b000: temp = SUB;
                 3'b001: temp = BNE;
@@ -48,8 +51,8 @@ always @(*) begin
                 3'b110: temp = BLTU;
                 3'b111: temp = BGEU;
                 default: temp = 0;
-            endcase
-        end
+            endcase 
+        end */
 
         IR_Type: begin
             case(func3)
