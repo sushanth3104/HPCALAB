@@ -27,8 +27,8 @@ wire [31:0]PCF,PCNextF,PCPlus4F,InstF,PCBranchD,PCJald,PCJalRD;
 
 
 wire [31:0]InstD,Rd1D,Rd2D,ImmD,ImmLD,SrcBD,PCPlus4D,PCD;
-wire [31:0]SrcAE,SrcBE,Rd1E,Rd2E,ALUResultE,PCPlus4E;
-wire [31:0]ALUResultM,ResultM,PCPlus4M;
+wire [31:0]SrcAE,SrcBE,Rd1E,Rd2E,ALUResultE,PCPlus4E,ImmE;
+wire [31:0]ALUResultM,ResultM,PCPlus4M,SrcBM,ReadDataM;
 wire [31:0]ALUResultW,ReadDataW,PCPlus4W;
 
 wire RegWriteD,MemReadD,MemWriteD,ALUSrcD;
@@ -86,19 +86,71 @@ PipelineRegister #() IF_ID(
 // Decode Stage
 
 wire []ControlSignalsD;
+wire []DataPathSignalsD;
 
 wire []DecodeStageOut,ExecuteStageIn;
 
+assign ControlSignalsD = {RegWriteD,MemReadD,MemWriteD,ALUSrcD,ALUOpD,ResultSrcD};
+assign DataPathSignalsD = {Rd1D,Rd2D,ImmD,PCPlus4D,WrD,func3D,func7_5D,opcode_5D};
 
+assign DecodeStageOut = {ControlSignalsD,DataPathSignalsD};
+
+assign {RegWriteE,MemReadE,MemWriteE,ALUSrcE,ALUOpE,ResultSrcE,Rd1E,Rd2E,ImmE,PCPlus4E,WrE,func3E,func7_5E,opcode_5E} = ExecuteStageIn;
+
+PipelineRegister #() ID_EX(
+    .clk(clk),
+    .rst(start),
+    .in(DecodeStageOut),
+    .out(ExecuteStageIn)
+);
 
 
 // Execute Stage
 
+wire []DataPathSignalsE;
+wire []ControlSignalsE;
+
+wire []ExecuteStageOut,MemoryStageIn;
+
+assign ControlSignalsE = {RegWriteE,MemWriteE,MemReadE,ResultSrcE};
+assign DataPathSignalsE = {ALUResultE,SrcBE,WrE,PCPlus4E};
+
+assign ExecuteStageOut = {ControlSignalsE,DataPathSignalsE};
+
+assign {RegWriteM,MemWriteM,MemReadM,ResultSrcM,ALUResultM,SrcBM,WrM,PCPlus4M} = MemoryStageIn;
+
+PipelineRegister #() Ex_MEM(
+    .clk(clk),
+    .rst(start),
+    .in(ExecuteStageOut),
+    .out(MemoryStageIn)
+);
+
 
 // Memory Stage
 
+wire []DataPathSignalsM;
+wire []ControlSignalsM;
+wire []MemoryStageOut,WriteBackStageIn;
 
-// Write Back Stage
+assign ControlSignalsM = {RegWriteM,ResultSrcM};
+assign DataPathSignalsM = {ALUResultM,ReadDataM,PCPlus4M,WrM};
+
+assign MemoryStageOut = {ControlSignalsM,DataPathSignalsM};
+assign {RegWriteW,ResultSrcW,ALUResultW,ReadDataW,PCPlus4W,WrW} = WriteBackStageIn;
+
+PipelineRegister #() MEM_WB(
+    .clk(clk),
+    .rst(start),
+    .in(MemoryStageOut),
+    .out(WriteBackStageIn)
+);
+
+
+
+
+
+// Data Path & Control Path Connections 
 
 
 
