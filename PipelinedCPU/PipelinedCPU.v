@@ -13,6 +13,7 @@
 `include "PipelineRegister.v"
 `include "Mux4to1.v"
 `include "BranchDecision.v"
+`include "ForwardingUnit.v"
 
 
 
@@ -28,13 +29,12 @@ wire [31:0]PCF,PCNextF,PCPlus4F,InstF,PCBranchD,PCJald,PCJalRD,PCTargetD;
 
 wire [31:0]InstD,Rd1D,Rd2D,ImmD,ImmLD,PCPlus4D,PCD;
 wire [31:0]SrcAE,SrcBE,Rd1E,Rd2E,ALUResultE,PCPlus4E,ImmE;
-wire [31:0]ALUResultM,PCPlus4M,Rd2M,ReadDataM;
+wire [31:0]ALUResultM,PCPlus4M,SrcBM,ReadDataM;
 wire [31:0]ALUResultW,ReadDataW,PCPlus4W,ResultW;
 
 wire RegWriteD,MemReadD,MemWriteD,ALUSrcD;
-wire ALUSrcE,ReadWriteE,MemReadE,MemWriteE;
+wire ALUSrcE,ReadWriteE,MemReadE,MemWriteE,RegWriteM;
 wire RegWriteE,MemReadM,MemWriteM;
-wire RegWriteM;
 
 
 wire [1:0]ResultSrcD,ALUOpD,PCTargetSelD;
@@ -45,12 +45,11 @@ wire [1:0]ResultSrcW;
 
 wire [3:0]ALUCtlE;
 
-wire [4:0]Rs1D,Rs2D,WrD,WrE,WrM,WrW;
+wire [4:0]Rs1D,Rs2D,Rs1E,Rs2E,WrD,WrE,WrM,WrW;
 
 assign Rs1D = InstD[19:15];
 assign Rs2D = InstD[24:20];
 assign WrD = InstD[11:7];
-assign SrcAE = Rd1E;
 
 wire [6:0] Opcode;
 wire [2:0] func3D,func3E,CompareResult;
@@ -62,6 +61,11 @@ assign func7_5D = InstD[30];
 assign opcode_5D = InstD[5];
 
 assign  Opcode = InstD[6:0];
+
+
+// Forwarding Unit
+wire [1:0] ForwardA,ForwardB;
+wire [31:0]ForwardBtoMux;
 
 
 // Fetch Stage
@@ -86,18 +90,18 @@ PipelineRegister #(96) IF_ID(
 // Decode Stage
 
 wire [7:0]ControlSignalsD;
-wire [137:0]DataPathSignalsD;
+wire [147:0]DataPathSignalsD;
 
-wire [145:0]DecodeStageOut,ExecuteStageIn;
+wire [155:0]DecodeStageOut,ExecuteStageIn;
 
 assign ControlSignalsD = {RegWriteD,MemReadD,MemWriteD,ALUSrcD,ALUOpD,ResultSrcD};
-assign DataPathSignalsD = {Rd1D,Rd2D,ImmD,PCPlus4D,WrD,func3D,func7_5D,opcode_5D};
+assign DataPathSignalsD = {Rd1D,Rd2D,ImmD,PCPlus4D,WrD,func3D,func7_5D,opcode_5D,Rs1D,Rs2D};
 
 assign DecodeStageOut = {ControlSignalsD,DataPathSignalsD};
 
-assign {RegWriteE,MemReadE,MemWriteE,ALUSrcE,ALUOpE,ResultSrcE,Rd1E,Rd2E,ImmE,PCPlus4E,WrE,func3E,func7_5E,opcode_5E} = ExecuteStageIn;
+assign {RegWriteE,MemReadE,MemWriteE,ALUSrcE,ALUOpE,ResultSrcE,Rd1E,Rd2E,ImmE,PCPlus4E,WrE,func3E,func7_5E,opcode_5E,Rs1E,Rs2E} = ExecuteStageIn;
 
-PipelineRegister #(146) ID_EX(
+PipelineRegister #(156) ID_EX(
     .clk(clk),
     .reset(start),
     .in(DecodeStageOut),
@@ -113,11 +117,11 @@ wire [4:0]ControlSignalsE;
 wire [105:0]ExecuteStageOut,MemoryStageIn;
 
 assign ControlSignalsE = {RegWriteE,MemWriteE,MemReadE,ResultSrcE};
-assign DataPathSignalsE = {ALUResultE,Rd2E,WrE,PCPlus4E};
+assign DataPathSignalsE = {ALUResultE,ForwardBtoMux,WrE,PCPlus4E};
 
 assign ExecuteStageOut = {ControlSignalsE,DataPathSignalsE};
 
-assign {RegWriteM,MemWriteM,MemReadM,ResultSrcM,ALUResultM,Rd2M,WrM,PCPlus4M} = MemoryStageIn;
+assign {RegWriteM,MemWriteM,MemReadM,ResultSrcM,ALUResultM,SrcBM,WrM,PCPlus4M} = MemoryStageIn;
 
 PipelineRegister #(106) Ex_MEM(
     .clk(clk),
@@ -216,11 +220,41 @@ ShiftLeftOne ShiftLeft(
 );
 
 Mux2to1 MuxALU(
-    .s0(Rd2E),
+    .s0(ForwardBtoMux),
     .s1(ImmE),
     .sel(ALUSrcE),
     .out(SrcBE)
 );
+
+Mux3to1 ForwardAMux(
+    .A(Rd1E),
+    .B(ResultW),
+    .C(ALUResultM),
+    .S(ForwardA),
+    .Y(SrcAE)
+);
+
+Mux3to1 ForwardBMux(
+    .A(Rd2E),
+    .B(ResultW),
+    .C(ALUResultM),
+    .S(ForwardB),
+    .Y(ForwardBtoMux)
+);
+
+// Forwarding unit
+
+ForwardingUnit ForwardingUnit(
+    .Rs1E(Rs1E),
+    .Rs2E(Rs2E),
+    .WrM(WrM),
+    .WrW(WrW),
+    .RegWriteM(RegWriteM),
+    .RegWriteW(RegWriteW),
+    .ForwardAE(ForwardA),
+    .ForwardBE(ForwardB)
+);
+
 
 
 ALU ALU(
@@ -275,7 +309,7 @@ DataMemory DataMemory(
     .memWrite(MemWriteM),
     .memRead(MemReadM), 
     .address(ALUResultM),
-    .writeData(Rd2M),
+    .writeData(SrcBM),
     .readData(ReadDataM)
 );
 
