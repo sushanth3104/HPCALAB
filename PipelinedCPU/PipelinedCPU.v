@@ -16,6 +16,7 @@
 `include "ForwardingUnit.v"
 `include "PipelineRegWithDisable.v"
 `include "HazardUnit.v"
+`include "ForwardingUnitBranchTarget.v"
 
 
 
@@ -87,7 +88,7 @@ assign {PCD,PCPlus4D,InstD} = DecodeStageIn;
 
 PipelineRegisterWithDisable #(96) IF_ID(
     .clk(clk),
-    .reset(start),
+    .reset(start_Flush),
     .disableSig(Stall),
     .in(FetchStageOut),
     .out(DecodeStageIn)
@@ -124,6 +125,50 @@ Mux2to1 #(.size(8)) StallMux (
     .sel(Stall),
     .out(ControlSignalsDMuxout)
 );
+
+
+// Branch Target Forwarding Unit : Same works for JALR as well)
+
+wire [1:0] ForwardA_BranchTarget;
+wire [1:0] ForwardB_BranchTarget;
+
+wire [31:0] RD1D_BranchTarget, RD2D_BranchTarget;
+
+// Branch-Jump Flush
+wire FlushIF_ID, start_Flush;
+
+and andReset(start_Flush,FlushIF_ID,start);
+
+ForwardingUnitBranchTarget ForwardingUnitBranchTarget(
+    .Rs1D(Rs1D),
+    .Rs2D(Rs2D),
+    .WrM(WrM),
+    .WrW(WrW),
+    .RegWriteM(RegWriteM),
+    .RegWriteW(RegWriteW),
+    .ForwardAE(ForwardA_BranchTarget),
+    .ForwardBE(ForwardB_BranchTarget)
+);
+
+
+Mux3to1 ForwardBranchTargetA(
+    .A(Rd1D),
+    .B(ResultW),
+    .C(ALUResultM),
+    .S(ForwardA_BranchTarget),
+    .Y(RD1D_BranchTarget)
+);
+
+Mux3to1 ForwardBranchTargetB(
+    .A(Rd2D),
+    .B(ResultW),
+    .C(ALUResultM),
+    .S(ForwardB_BranchTarget),
+    .Y(RD2D_BranchTarget)
+);
+
+
+
 
 
 // Execute Stage
@@ -208,8 +253,8 @@ Register RegisterFile(
 );
 
 BranchDecisionUnit BranchDecisionUnit(
-    .Rd1(Rd1D),
-    .Rd2(Rd2D),
+    .Rd1(RD1D_BranchTarget),
+    .Rd2(RD2D_BranchTarget),
     .CompareResult(CompareResult)
 );
 
@@ -267,7 +312,9 @@ HazardUnit HazardDetectionUnit(
     .Rs2D(Rs2D),
     .WrE(WrE),
     .MemReadE(MemReadE),
-    .Stall(Stall)
+    .Stall(Stall),
+    .FlushIF_ID(FlushIF_ID),
+    .opcodeD(Opcode)
 );
 
 
@@ -326,8 +373,8 @@ Adder JALRAdder(      // Presence of this adder enables JALR instruction to comp
 Mux4to1 PCTargetMux(
     .A(PCPlus4F),
     .B(PCTargetD), // For Jal 
-    .C(PCJalRD),
-    .D(PCTargetD), // For Branch
+    .C(PCTargetD), // For Branch
+    .D(PCJalRD),  // For JALR
     .S(PCTargetSelD),
     .Y(PCNextF)
 );
