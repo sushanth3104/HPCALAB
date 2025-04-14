@@ -14,6 +14,8 @@
 `include "Mux4to1.v"
 `include "BranchDecision.v"
 `include "ForwardingUnit.v"
+`include "PipelineRegWithDisable.v"
+`include "HazardUnit.v"
 
 
 
@@ -68,6 +70,10 @@ wire [1:0] ForwardA,ForwardB;
 wire [31:0]ForwardBtoMux;
 
 
+// Hazard Detection Unit
+wire Stall;
+
+
 // Fetch Stage
 
 wire [95:0]DataPathSignalsF;
@@ -79,9 +85,10 @@ assign DataPathSignalsF = {PCF,PCPlus4F,InstF};
 assign FetchStageOut = DataPathSignalsF;
 assign {PCD,PCPlus4D,InstD} = DecodeStageIn;
 
-PipelineRegister #(96) IF_ID(
+PipelineRegisterWithDisable #(96) IF_ID(
     .clk(clk),
     .reset(start),
+    .disableSig(Stall),
     .in(FetchStageOut),
     .out(DecodeStageIn)
 );
@@ -90,6 +97,7 @@ PipelineRegister #(96) IF_ID(
 // Decode Stage
 
 wire [7:0]ControlSignalsD;
+wire [7:0]ControlSignalsDMuxout;
 wire [147:0]DataPathSignalsD;
 
 wire [155:0]DecodeStageOut,ExecuteStageIn;
@@ -97,7 +105,7 @@ wire [155:0]DecodeStageOut,ExecuteStageIn;
 assign ControlSignalsD = {RegWriteD,MemReadD,MemWriteD,ALUSrcD,ALUOpD,ResultSrcD};
 assign DataPathSignalsD = {Rd1D,Rd2D,ImmD,PCPlus4D,WrD,func3D,func7_5D,opcode_5D,Rs1D,Rs2D};
 
-assign DecodeStageOut = {ControlSignalsD,DataPathSignalsD};
+assign DecodeStageOut = {ControlSignalsDMuxout,DataPathSignalsD};
 
 assign {RegWriteE,MemReadE,MemWriteE,ALUSrcE,ALUOpE,ResultSrcE,Rd1E,Rd2E,ImmE,PCPlus4E,WrE,func3E,func7_5E,opcode_5E,Rs1E,Rs2E} = ExecuteStageIn;
 
@@ -106,6 +114,15 @@ PipelineRegister #(156) ID_EX(
     .reset(start),
     .in(DecodeStageOut),
     .out(ExecuteStageIn)
+);
+
+// Stall -> Decode Stage
+
+Mux2to1 #(.size(8)) StallMux (
+    .s0(ControlSignalsD),
+    .s1(8'd0),
+    .sel(Stall),
+    .out(ControlSignalsDMuxout)
 );
 
 
@@ -162,6 +179,7 @@ PC PC1(
     .clk(clk),
     .rst(start),
     .pc_i(PCNextF),
+    .disableSig(Stall),
     .pc_o(PCF)
 );
 
@@ -241,6 +259,18 @@ Mux3to1 ForwardBMux(
     .S(ForwardB),
     .Y(ForwardBtoMux)
 );
+
+// Hazard Detection Unit
+
+HazardUnit HazardDetectionUnit(
+    .Rs1D(Rs1D),
+    .Rs2D(Rs2D),
+    .WrE(WrE),
+    .MemReadE(MemReadE),
+    .Stall(Stall)
+);
+
+
 
 // Forwarding unit
 
