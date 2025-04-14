@@ -86,7 +86,7 @@ always@(*)begin
 
             memRead = 0;
             ResultSrc = 2'b00;
-            ALUOp = Branch_Type;
+            ALUOp = Load_Store_Type;// Can be anything 
             memWrite = 0;
             ALUSrc = 0;
             regWrite = 0;
@@ -101,7 +101,7 @@ always@(*)begin
                 end
 
                 3'b001:begin // BNE
-                    if(CompareResult[0] = 0) begin
+                    if(CompareResult[0] == 0) begin
                         PCTargetSel = PCBranch; // For BNE
                     end else begin
                         PCTargetSel = PCPlus4; // For BNE
@@ -200,7 +200,7 @@ always@(*)begin
 
         end
 
-        default : {ResultSrc,ALUOp,branch,jump,memRead,PCLoad,memWrite,ALUSrc,regWrite} = 0;
+        default : {ResultSrc,ALUOp,memRead,memWrite,ALUSrc,regWrite,PCTargetSel} = 0;
 
     endcase
 

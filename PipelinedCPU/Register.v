@@ -17,7 +17,7 @@ module Register (
     assign readData1 = (readReg1!=0)?regs[readReg1]:0;
     assign readData2 = (readReg2!=0)?regs[readReg2]:0;
      
-    always @(posedge clk) begin
+    always @(negedge clk) begin
         if(~rst) begin
             regs[0] <= 0; regs[1] <= 0; regs[2] <= 32'd128; regs[3] <= 0; 
             regs[4] <= 0; regs[5] <= 0; regs[6] <= 0; regs[7] <= 0; 

@@ -23,13 +23,13 @@ module PipelinedCPU (
 );
 
 
-wire [31:0]PCF,PCNextF,PCPlus4F,InstF,PCBranchD,PCJald,PCJalRD;
+wire [31:0]PCF,PCNextF,PCPlus4F,InstF,PCBranchD,PCJald,PCJalRD,PCTargetD;
 
 
-wire [31:0]InstD,Rd1D,Rd2D,ImmD,ImmLD,SrcBD,PCPlus4D,PCD;
+wire [31:0]InstD,Rd1D,Rd2D,ImmD,ImmLD,PCPlus4D,PCD;
 wire [31:0]SrcAE,SrcBE,Rd1E,Rd2E,ALUResultE,PCPlus4E,ImmE;
-wire [31:0]ALUResultM,ResultM,PCPlus4M,SrcBM,ReadDataM;
-wire [31:0]ALUResultW,ReadDataW,PCPlus4W;
+wire [31:0]ALUResultM,PCPlus4M,Rd2M,ReadDataM;
+wire [31:0]ALUResultW,ReadDataW,PCPlus4W,ResultW;
 
 wire RegWriteD,MemReadD,MemWriteD,ALUSrcD;
 wire ALUSrcE,ReadWriteE,MemReadE,MemWriteE;
@@ -57,27 +57,27 @@ wire [2:0] func3D,func3E,CompareResult;
 wire func7_5D,func7_5E;
 wire opcode_5D,opcode_5E;
 
-assign func3 = InstD[14:12];
-assign func7_5 = InstD[30];
-assign opcode_5 = InstD[5];
+assign func3D = InstD[14:12];
+assign func7_5D = InstD[30];
+assign opcode_5D = InstD[5];
 
 assign  Opcode = InstD[6:0];
 
 
 // Fetch Stage
 
-wire []DataPathSignalsF;
+wire [95:0]DataPathSignalsF;
 
-wire []FetchStageOut,DecodeStageIn;
+wire [95:0]FetchStageOut,DecodeStageIn;
 
 assign DataPathSignalsF = {PCF,PCPlus4F,InstF};
 
 assign FetchStageOut = DataPathSignalsF;
 assign {PCD,PCPlus4D,InstD} = DecodeStageIn;
 
-PipelineRegister #() IF_ID(
+PipelineRegister #(96) IF_ID(
     .clk(clk),
-    .rst(start),
+    .reset(start),
     .in(FetchStageOut),
     .out(DecodeStageIn)
 );
@@ -85,10 +85,10 @@ PipelineRegister #() IF_ID(
 
 // Decode Stage
 
-wire []ControlSignalsD;
-wire []DataPathSignalsD;
+wire [7:0]ControlSignalsD;
+wire [137:0]DataPathSignalsD;
 
-wire []DecodeStageOut,ExecuteStageIn;
+wire [145:0]DecodeStageOut,ExecuteStageIn;
 
 assign ControlSignalsD = {RegWriteD,MemReadD,MemWriteD,ALUSrcD,ALUOpD,ResultSrcD};
 assign DataPathSignalsD = {Rd1D,Rd2D,ImmD,PCPlus4D,WrD,func3D,func7_5D,opcode_5D};
@@ -97,9 +97,9 @@ assign DecodeStageOut = {ControlSignalsD,DataPathSignalsD};
 
 assign {RegWriteE,MemReadE,MemWriteE,ALUSrcE,ALUOpE,ResultSrcE,Rd1E,Rd2E,ImmE,PCPlus4E,WrE,func3E,func7_5E,opcode_5E} = ExecuteStageIn;
 
-PipelineRegister #() ID_EX(
+PipelineRegister #(146) ID_EX(
     .clk(clk),
-    .rst(start),
+    .reset(start),
     .in(DecodeStageOut),
     .out(ExecuteStageIn)
 );
@@ -107,21 +107,21 @@ PipelineRegister #() ID_EX(
 
 // Execute Stage
 
-wire []DataPathSignalsE;
-wire []ControlSignalsE;
+wire [100:0]DataPathSignalsE;
+wire [4:0]ControlSignalsE;
 
-wire []ExecuteStageOut,MemoryStageIn;
+wire [105:0]ExecuteStageOut,MemoryStageIn;
 
 assign ControlSignalsE = {RegWriteE,MemWriteE,MemReadE,ResultSrcE};
-assign DataPathSignalsE = {ALUResultE,SrcBE,WrE,PCPlus4E};
+assign DataPathSignalsE = {ALUResultE,Rd2E,WrE,PCPlus4E};
 
 assign ExecuteStageOut = {ControlSignalsE,DataPathSignalsE};
 
-assign {RegWriteM,MemWriteM,MemReadM,ResultSrcM,ALUResultM,SrcBM,WrM,PCPlus4M} = MemoryStageIn;
+assign {RegWriteM,MemWriteM,MemReadM,ResultSrcM,ALUResultM,Rd2M,WrM,PCPlus4M} = MemoryStageIn;
 
-PipelineRegister #() Ex_MEM(
+PipelineRegister #(106) Ex_MEM(
     .clk(clk),
-    .rst(start),
+    .reset(start),
     .in(ExecuteStageOut),
     .out(MemoryStageIn)
 );
@@ -129,9 +129,9 @@ PipelineRegister #() Ex_MEM(
 
 // Memory Stage
 
-wire []DataPathSignalsM;
-wire []ControlSignalsM;
-wire []MemoryStageOut,WriteBackStageIn;
+wire [100:0]DataPathSignalsM;
+wire [2:0]ControlSignalsM;
+wire [103:0]MemoryStageOut,WriteBackStageIn;
 
 assign ControlSignalsM = {RegWriteM,ResultSrcM};
 assign DataPathSignalsM = {ALUResultM,ReadDataM,PCPlus4M,WrM};
@@ -139,9 +139,9 @@ assign DataPathSignalsM = {ALUResultM,ReadDataM,PCPlus4M,WrM};
 assign MemoryStageOut = {ControlSignalsM,DataPathSignalsM};
 assign {RegWriteW,ResultSrcW,ALUResultW,ReadDataW,PCPlus4W,WrW} = WriteBackStageIn;
 
-PipelineRegister #() MEM_WB(
+PipelineRegister #(104) MEM_WB(
     .clk(clk),
-    .rst(start),
+    .reset(start),
     .in(MemoryStageOut),
     .out(WriteBackStageIn)
 );
@@ -182,7 +182,7 @@ Register RegisterFile(
     .writeData(ResultW),
     .readData1(Rd1D),
     .readData2(Rd2D),
-    .regWrite(RegWrite)
+    .regWrite(RegWriteW)
 );
 
 BranchDecisionUnit BranchDecisionUnit(
@@ -198,15 +198,15 @@ ImmGen ImmGen(
 
 Control Control(
     .opcode(Opcode),
-    .memRead(MemRead),
-    .ResultSrc(ResultSrc),
+    .memRead(MemReadD),
+    .ResultSrc(ResultSrcD),
     .CompareResult(CompareResult),
-    .ALUOp(ALUOp),
-    .memWrite(MemWrite),
-    .ALUSrc(ALUSrc),
-    .regWrite(RegWrite),
-    .PCTargetSel(PCTargetSel),
-    func3(func3)
+    .ALUOp(ALUOpD),
+    .memWrite(MemWriteD),
+    .ALUSrc(ALUSrcD),
+    .regWrite(RegWriteD),
+    .PCTargetSel(PCTargetSelD),
+    .func3(func3D)
 );
 
 
@@ -216,32 +216,32 @@ ShiftLeftOne ShiftLeft(
 );
 
 Mux2to1 MuxALU(
-    .s0(Rd2D),
-    .s1(ImmD),
-    .sel(ALUSrc),
-    .out(SrcBD)
+    .s0(Rd2E),
+    .s1(ImmE),
+    .sel(ALUSrcE),
+    .out(SrcBE)
 );
 
 
 ALU ALU(
     .SrcA(SrcAE),
     .SrcB(SrcBE),
-    .ALUCtl(ALUCtl),
+    .ALUCtl(ALUCtlE),
     .ALUOut(ALUResultE)
 );
 
 ALUCtrl ALUControl(
-    .ALUOp(ALUOp),
-    .func3(func3),
-    .func7_5(func7_5),
-    .opcode_5(opcode_5),
-    .ALUCtl(ALUCtl)
+    .ALUOp(ALUOpE),
+    .func3(func3E),
+    .func7_5(func7_5E),
+    .opcode_5(opcode_5E),
+    .ALUCtl(ALUCtlE)
 );
 
 Adder PCTargetAdder(
     .a(PCD),
     .b(ImmLD),
-    .sum(PCTarget)
+    .sum(PCTargetD)
 );
 
 /* Mux2to1 MuxPCTarget(
@@ -261,10 +261,10 @@ Adder JALRAdder(      // Presence of this adder enables JALR instruction to comp
 
 Mux4to1 PCTargetMux(
     .A(PCPlus4F),
-    .B(PCTarget), // For Jal 
+    .B(PCTargetD), // For Jal 
     .C(PCJalRD),
-    .D(PCTarget), // For Branch
-    .S(PCTargetSel),
+    .D(PCTargetD), // For Branch
+    .S(PCTargetSelD),
     .Y(PCNextF)
 );
 
@@ -272,11 +272,11 @@ Mux4to1 PCTargetMux(
 DataMemory DataMemory(
     .rst(start),
     .clk(clk),
-    .memWrite(MemWrite),
-    .memRead(MemRead), 
-    .address(ALUResult),
-    .writeData(Rd2),
-    .readData(ReadData)
+    .memWrite(MemWriteM),
+    .memRead(MemReadM), 
+    .address(ALUResultM),
+    .writeData(Rd2M),
+    .readData(ReadDataM)
 );
 
 
@@ -284,7 +284,7 @@ Mux3to1 MuxResultSrc(
     .A(ALUResultW),
     .B(ReadDataW),
     .C(PCPlus4W),
-    .S(ResultSrc),
+    .S(ResultSrcW),
     .Y(ResultW)
 );
 

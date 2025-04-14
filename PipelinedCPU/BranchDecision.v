@@ -1,4 +1,4 @@
-module #(parameter WIDHT = 32) BranchDecisionUnit
+module BranchDecisionUnit  #(parameter WIDHT = 32) 
 (
     input [WIDHT-1:0] Rd1,Rd2,
     output [2:0] CompareResult   // 0: equal, 1: less than, 2: less than unsigned

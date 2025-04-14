@@ -1,20 +1,20 @@
-module #(parameter WIDHT = 4) PipelineRegister(
+module PipelineRegister #(parameter WIDTH = 4) (
 
-    input [WIDHT-1:0] data_in,
+    input [WIDTH-1:0] in,
     input clk,
     input reset,
-    output [WIDHT-1:0] data_out
+    output [WIDTH-1:0] out
 );
 
-    reg [WIDHT-1:0] temp;
+    reg [WIDTH-1:0] temp;
 
-    assign data_out = temp;
+    assign out = temp;
 
     always @(posedge clk) begin
         if (~reset) begin
             temp <= 0;
         end else begin
-            temp <= data_in;
+            temp <= in;
         end
     end
 

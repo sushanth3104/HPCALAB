@@ -1,4 +1,4 @@
-`include "PielinedCPU.v"
+`include "PipelinedCPU.v"
 `timescale 1ns/1ps
 module tb_riscv_sc;
 //cpu testbench
@@ -53,7 +53,7 @@ end
 
 
 
-SingleCycleCPU riscv_DUT(clk, start);
+PipelinedCPU riscv_DUT(clk, start);
 
 initial
 	forever #5 clk = ~clk;
