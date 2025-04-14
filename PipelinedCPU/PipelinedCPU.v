@@ -314,7 +314,9 @@ HazardUnit HazardDetectionUnit(
     .MemReadE(MemReadE),
     .Stall(Stall),
     .FlushIF_ID(FlushIF_ID),
-    .opcodeD(Opcode)
+    .opcodeD(Opcode),
+    .RegWriteE(RegWriteE),
+    .BranchTaken(PCTargetSelD) // CompareResult[0] is used to check if the branch is taken or not
 );
 
 
